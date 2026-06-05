@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>ODP Map v10.4 FINAL (READY)</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<style>
+body{margin:0;font-family:Arial;display:flex}
+#sidebar{width:340px;background:#f4f4f4;padding:10px;overflow:auto}
+#map{flex:1;height:100vh}
+input,select,button{width:100%;margin:5px 0}
+canvas{margin-top:10px}
+.credit{margin-top:20px;font-size:11px;color:#555;border-top:1px solid #ccc;padding-top:8px}
+.cluster-icon {
+  background:#005ea5;
+  color:white;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:bold;
+  border:2px solid white;
+}
+</style>
+</head>
+<body>
+
+<div id="sidebar">
+<h3>ODP Dashboard</h3>
+<input type="file" id="fileUpload" accept=".csv,.json">
+<input id="search" placeholder="Search name...">
+<select id="region"><option value="">All Regions</option></select>
+<select id="department"><option value="">All Departments</option></select>
+<select id="prevDepartment"><option value="">All Previous Departments</option></select>
+<select id="year"><option value="">All Years</option></select>
+<button onclick="resetFilters()">Reset</button>
+
+<h4>Charts</h4>
+<canvas id="regionChart"></canvas>
+<canvas id="deptChart"></canvas>
+
+<div class="credit">
+Built by<br>
+James Logan<br>
+james.logan@faststream.civilservice.gov.uk
+</div>
+</div>
+
+<div id="map"></div>
+
+<script>
+// READY: data embedded below (CSV converted to JSON)
+var rawData = [{"name": "Andrew Blaikie", "lat": 55.8642, "lon": -4.2518, "current_region": "Scotland", "current_department": "DWP", "current_year": "First Year", "current_city": "Glasgow", "current_title": "Work Coach Team Leader", "previous_region": NaN, "previous_department": NaN, "previous_title": NaN}, {"name": "Bethany Bury", "lat": 53.4084, "lon": -2.9916, "current_region": "North West ", "current_department": "MoJ -HMPSS", "current_year": "Second Year", "current_city": "Liverpool", "current_title": "Operational Lead", "previous_region": "North West ", "previous_department": "DfE", "previous_title": "Operational Case Lead, Academy Conversions"}, {"name": "Fiona Elwood", "lat": 51.5842, "lon": -2.9977, "current_region": "Wales", "current_department": "ONS", "current_year": "First Year", "current_city": "Newport", "current_title": "Subject Matter Expert", "previous_region": NaN, "previous_department": NaN, "previous_title": NaN}, {"name": "Kristen Buckle", "lat": 51.7527, "lon": -0.3394, "current_region": "East of England", "current_department": "DWP", "current_year": "First Year", "current_city": "St Albans", "current_title": "Employer and Partnerships Innovation Lead", "previous_region": NaN, "previous_department": NaN, "previous_title": NaN}, {"name": "Annie King", "lat": 51.752, "lon": -1.2577, "current_region": "South East", "current_department": "DWP", "current_year": "First Year", "current_city": "Oxford and across Oxfordshire", "current_title": "Partnership and Innovation Lead", "previous_region": NaN, "previous_department": NaN, "previous_title": NaN}, {"name": "Michael Bell", "lat": 52.4862, "lon": -1.8904, "current_region": "West Midlands", "current_department": "DESNZ", "current_year": "First Year", "current_city": "Birmingham", "current_title": "Response Implementation Lead - Upstream Oil and Gas Resilience", "previous_region": NaN, "previous_department": NaN, "previous_title": NaN}, {"name": "Huw Lee", "lat": 51.3758, "lon": -2.3599, "current_region": "South West", "current_department": "DWP", "current_year": "Second Year", "current_city": "Bath", "current_title": "Southern Visiting Group Operations Lead", "previous_region": "Wales", "previous_department": "HMRC", "previous_title": "HMRC Community Forum Technical Manager"}, {"name": "Harry Ward", "lat": 52.6816, "lon": -1.831, "current_region": "West Midlands", "current_department": "MOD", "current_year": "Second Year", "current_city": "Lichfield", "current_title": "Senior Business Manager", "previous_region": "North West ", "previous_department": "Home Office", "previous_title": "Operational Engagement Manager"}, {"name": "James Logan", "lat": 55.9533, "lon": -3.1883, "current_region": "Scotland", "current_department": "DWP", "current_year": "First Year", "current_city": "Edinburgh", "current_title": "Work Coach Team Leader", "previous_region": NaN, "previous_department": NaN, "previous_title": NaN}, {"name": "Matthew Boswell", "lat": 51.8959, "lon": 0.8919, "current_region": "East of England", "current_department": "DWP", "current_year": "First Year", "current_city": "Colchester", "current_title": "Work Coach Team Leader", "previous_region": NaN, "previous_department": NaN, "previous_title": NaN}, {"name": "Iain Messore", "lat": 52.9548, "lon": -1.1581, "current_region": "East Midlands", "current_department": "DWP", "current_year": "First Year", "current_city": "Nottingham", "current_title": "Visiting team leader", "previous_region": NaN, "previous_department": NaN, "previous_title": NaN}, {"name": "Dan Mears", "lat": 53.4808, "lon": -2.2426, "current_region": "North West ", "current_department": "HMRC", "current_year": "Second Year", "current_city": "Manchester", "current_title": "Deputy Senior Delivery Leader", "previous_region": "North West ", "previous_department": "DWP", "previous_title": "Work Coach Team Leader"}, {"name": "Zoë Audra", "lat": 53.393, "lon": -3.0148, "current_region": "North West ", "current_department": "DWP", "current_year": "Second Year", "current_city": "Birkenhead", "current_title": "Operations Project & Implementation Manager", "previous_region": "North West ", "previous_department": "MOD", "previous_title": "Operations Manager"}, {"name": "Filippo Pasquali", "lat": 51.4816, "lon": -3.1791, "current_region": "Wales", "current_department": "DWP", "current_year": "Second Year", "current_city": "Cardiff", "current_title": "Relationship Manager", "previous_region": "Wales", "previous_department": "HMRC", "previous_title": "Operations Manager"}, {"name": "Ismail Saddiq", "lat": 53.8008, "lon": -1.5491, "current_region": "Yorkshire and Humber", "current_department": "HMRC", "current_year": "First Year", "current_city": "Leeds", "current_title": "PAYE team Leader", "previous_region": NaN, "previous_department": NaN, "previous_title": NaN}, {"name": "Mohammad Umar Shahid", "lat": 51.7527, "lon": -0.3394, "current_region": "East of England", "current_department": "DWP", "current_year": "First Year", "current_city": "St Albans", "current_title": "CFCD - ERT Team Leader", "previous_region": NaN, "previous_department": NaN, "previous_title": NaN}, {"name": "Theo Wagner", "lat": 51.902, "lon": -0.2028, "current_region": "South East", "current_department": "MoJ", "current_year": "First Year", "current_city": "Stevenage", "current_title": "HEO", "previous_region": NaN, "previous_department": NaN, "previous_title": NaN}, {"name": "Kristina von Kaehne", "lat": 55.7894, "lon": -3.9915, "current_region": "Scotland", "current_department": "DWP", "current_year": "First Year", "current_city": "Motherwell", "current_title": "Later Life Service Phase 2 Implementation and Communications Manager", "previous_region": NaN, "previous_department": NaN, "previous_title": NaN}, {"name": "Michael Aigbokhabho", "lat": 53.4875, "lon": -2.2901, "current_region": "North West ", "current_department": "HMRC", "current_year": "First Year", "current_city": "Salford", "current_title": "Bereavement Services Team Leader", "previous_region": NaN, "previous_department": NaN, "previous_title": NaN}, {"name": "Akash Bandal", "lat": 54.9783, "lon": -1.6178, "current_region": "East of England", "current_department": "DWP", "current_year": "First Year", "current_city": "Newcastle upon Tyne", "current_title": "Project Manager", "previous_region": NaN, "previous_department": NaN, "previous_title": NaN}, {"name": "Amir El-Aswad", "lat": 54.9783, "lon": -1.6178, "current_region": "North East", "current_department": "Home Office", "current_year": "First Year", "current_city": "Newcastle", "current_title": "Border Force Correspondence Manager", "previous_region": NaN, "previous_department": NaN, "previous_title": NaN}, {"name": "Wesley Collins", "lat": 52.9548, "lon": -1.1581, "current_region": "East Midlands", "current_department": "DEFRA", "current_year": "Second Year", "current_city": "Nottingham", "current_title": "Operational Delivery Manager", "previous_region": "North East", "previous_department": "DfE", "previous_title": "Project Manager"}, {"name": "Reno Jaison-Mathew", "lat": 52.5234, "lon": -1.4653, "current_region": "West Midlands", "current_department": "DWP", "current_year": "Second Year", "current_city": "Nuneaton ", "current_title": "The Shires Young Persons Health Lead", "previous_region": "Wales", "previous_department": "Home Office", "previous_title": "Asylum Mental Health and Wellbeing Project Lead"}, {"name": "Emma Crane", "lat": 53.7632, "lon": -2.7031, "current_region": "North West ", "current_department": "MoJ - HMCTS", "current_year": "First Year", "current_city": "Preston", "current_title": "Magistrates' Delivery Manager", "previous_region": NaN, "previous_department": NaN, "previous_title": NaN}, {"name": "Michelle Williams", "lat": 53.3811, "lon": -1.4701, "current_region": "Yorkshire and Humber", "current_department": "DfE", "current_year": "Second Year", "current_city": "Sheffield", "current_title": "Operational Delivery Lead", "previous_region": "Yorkshire and Humber", "previous_department": "MoJ", "previous_title": "Operational Lead"}, {"name": "Fraser Simpson", "lat": 55.8642, "lon": -4.2518, "current_region": "Scotland", "current_department": "Home Office", "current_year": "First Year", "current_city": "Glasgow", "current_title": "Asylum Mental Health and Wellbeing Project Lead", "previous_region": NaN, "previous_department": NaN, "previous_title": NaN}, {"name": "Lucy Caulfield", "lat": 53.4115, "lon": -2.8393, "current_region": "North West ", "current_department": "DWP", "current_year": "First Year", "current_city": "Merseyside (Huyton)", "current_title": "Employer and Partnerships Team Leader", "previous_region": NaN, "previous_department": NaN, "previous_title": NaN}, {"name": "George Suff", "lat": 50.3755, "lon": -4.1427, "current_region": "South West", "current_department": "DWP", "current_year": "First Year", "current_city": "Plymouth", "current_title": "Operational Resource Planner", "previous_region": NaN, "previous_department": NaN, "previous_title": NaN}, {"name": "Jakub Lewandowski", "lat": 53.4084, "lon": -2.9916, "current_region": "North West ", "current_department": "HMRC", "current_year": "First Year", "current_city": "Liverpool", "current_title": "DM DRT Site Lead", "previous_region": NaN, "previous_department": NaN, "previous_title": NaN}, {"name": "Arin Annan", "lat": 53.8008, "lon": -1.5491, "current_region": "Yorkshire and Humber", "current_department": "MoJ", "current_year": "Second Year", "current_city": "Leeds", "current_title": "Planning & Operations Lead", "previous_region": "North East", "previous_department": "DWP", "previous_title": "Quality Assurance Lead"}, {"name": "Lucie Graham", "lat": 53.4808, "lon": -2.2426, "current_region": "North West ", "current_department": "DfE", "current_year": "Second Year", "current_city": "Manchester", "current_title": "Operational Delivery Manager", "previous_region": "North West ", "previous_department": "HMRC", "previous_title": "Operational Delivery Manager"}, {"name": "Libby Shepherd", "lat": 53.4084, "lon": -2.9916, "current_region": "North West ", "current_department": "HMRC - VOA", "current_year": "First Year", "current_city": "Liverpool", "current_title": "Operational manager", "previous_region": NaN, "previous_department": NaN, "previous_title": NaN}, {"name": "Aditi Sebastian", "lat": 51.3762, "lon": -0.0982, "current_region": "London", "current_department": "HM Land Registry", "current_year": "First Year", "current_city": "Croydon London", "current_title": "Customer & Specialised Services Communications Lead", "previous_region": NaN, "previous_department": NaN, "previous_title": NaN}, {"name": "Caitlyn Veitch", "lat": 53.4808, "lon": -2.2426, "current_region": "North West ", "current_department": "DESNZ", "current_year": "First Year", "current_city": "Manchester", "current_title": "Offshore Oil Pollution BMS Manager", "previous_region": NaN, "previous_department": NaN, "previous_title": NaN}, {"name": "Volkan Ceylan", "lat": 52.4862, "lon": -1.8904, "current_region": "West Midlands", "current_department": "DWP", "current_year": "First Year", "current_city": "Birmingham", "current_title": "Operations Lead", "previous_region": NaN, "previous_department": NaN, "previous_title": NaN}, {"name": "Cameron Emery", "lat": 54.9783, "lon": -1.6178, "current_region": "North East", "current_department": "DWP", "current_year": "Second Year", "current_city": "Newcastle Upon Tyne", "current_title": "Operational Delivery Manager", "previous_region": "North East", "previous_department": "HMRC - VOA", "previous_title": "Operational Team Leader"}, {"name": "Shanell Cornwall", "lat": 51.5072, "lon": -0.1276, "current_region": "London", "current_department": "Home Office", "current_year": "Second Year", "current_city": "London", "current_title": "External Engagement Manager", "previous_region": "Wales", "previous_department": "DWP", "previous_title": "Operational Team Leader"}, {"name": "Aidan Radford", "lat": 55.8642, "lon": -4.2518, "current_region": "Scotland", "current_department": "HMRC", "current_year": "Second Year", "current_city": "Glasgow", "current_title": "Senior Business Service Manager", "previous_region": "North East", "previous_department": "RPA", "previous_title": "Operational Delivery Manager"}, {"name": "Isabelle Bingley", "lat": 53.4084, "lon": -2.9916, "current_region": "North West ", "current_department": "Home Office", "current_year": "Second Year", "current_city": "Liverpool", "current_title": "Head of Interviews", "previous_region": "North West ", "previous_department": "HMRC", "previous_title": "Site Lead"}, {"name": "Pareeta Tanna", "lat": 54.9, "lon": -1.5167, "current_region": "North East", "current_department": "HMRC", "current_year": "First Year", "current_city": "Washington", "current_title": "Frontline manager", "previous_region": NaN, "previous_department": NaN, "previous_title": NaN}, {"name": "Thomas Richardson", "lat": 53.8008, "lon": -1.5491, "current_region": "Yorkshire and Humber", "current_department": "DWP", "current_year": "Second Year", "current_city": "Leeds", "current_title": "Delivery Support", "previous_region": "North West ", "previous_department": "MoJ", "previous_title": "Team Leader"}, {"name": "Cori Hall", "lat": 51.4816, "lon": -3.1791, "current_region": "Wales", "current_department": "HMRC", "current_year": "First Year", "current_city": "Cardiff", "current_title": "Operations Manager", "previous_region": NaN, "previous_department": NaN, "previous_title": NaN}, {"name": "Lisa Gray", "lat": 54.979, "lon": -1.483, "current_region": "North East", "current_department": "MoJ - LAA", "current_year": "Second Year", "current_city": "Jarrow", "current_title": "Customer Service Team Manager", "previous_region": "North East", "previous_department": "HMRC", "previous_title": "Group Leader"}, {"name": "Megan Rosenberg", "lat": 54.9, "lon": -1.5167, "current_region": "North East", "current_department": "HMRC", "current_year": "First Year", "current_city": "Washington", "current_title": "Child Benefit front line manager", "previous_region": NaN, "previous_department": NaN, "previous_title": NaN}, {"name": "David Preece", "lat": 53.4808, "lon": -2.2426, "current_region": "North West ", "current_department": "DWP", "current_year": "Second Year", "current_city": "Manchester", "current_title": "Operational Delivery Manager", "previous_region": "North West ", "previous_department": "Home Office", "previous_title": "Higher Targeting Officer"}, {"name": "Elspeth Tolan", "lat": 53.959, "lon": -1.0815, "current_region": "Yorkshire and Humber", "current_department": "RPA", "current_year": "Second Year", "current_city": "York", "current_title": "Sustainable Farming Incentive 23 Delivery Lead", "previous_region": "North East", "previous_department": "DfE", "previous_title": "Business Operations Lead"}, {"name": "Sofia Sandnes", "lat": 51.5842, "lon": -2.9977, "current_region": "Wales", "current_department": "MoJ - HMCTS", "current_year": "Second Year", "current_city": "Newport", "current_title": "Delivery Manager", "previous_region": "Wales", "previous_department": "HMRC", "previous_title": "Technical Manager"}, {"name": "Lewis Gibb", "lat": 53.4084, "lon": -2.9916, "current_region": "North West ", "current_department": "HMRC - VOA", "current_year": "Second Year", "current_city": "Liverpool", "current_title": "Operations Manager", "previous_region": "Wales", "previous_department": "DWP", "previous_title": "Quality Assurance Manager"}, {"name": "Adnan Bana", "lat": 51.3762, "lon": -0.0982, "current_region": "London", "current_department": "Home Office", "current_year": "Second Year", "current_city": "Croydon, Greater London", "current_title": "Assurance Mapping Lead", "previous_region": "North East", "previous_department": "DWP", "previous_title": "Berevement Pensions Manager"}, {"name": "Daniel Mears", "lat": 53.4808, "lon": -2.2426, "current_region": "North West ", "current_department": "HMRC", "current_year": "Second Year", "current_city": "Manchester", "current_title": "Deputy Senior Delivery Leader", "previous_region": "North West ", "previous_department": "DWP", "previous_title": "Work Coach Team Leader"}, {"name": "Joseph Gilbert", "lat": 53.4084, "lon": -2.9916, "current_region": "North West ", "current_department": "HMRC", "current_year": "Second Year", "current_city": "Liverpool", "current_title": "Senior Site Lead", "previous_region": "North West ", "previous_department": "UKHSA", "previous_title": "Business Support Manager"}, {"name": "Akash Ramesh Bandal", "lat": 54.9783, "lon": -1.6178, "current_region": "North East", "current_department": "DWP", "current_year": "First Year", "current_city": "Newcastle upon Tyne", "current_title": "Project Manager", "previous_region": NaN, "previous_department": NaN, "previous_title": NaN}, {"name": "Amy Leith", "lat": 53.8008, "lon": -1.5491, "current_region": "Yorkshire and Humber", "current_department": "HMRC", "current_year": "First Year", "current_city": "Leeds", "current_title": "Insight and Evaluation Lead", "previous_region": NaN, "previous_department": NaN, "previous_title": NaN}, {"name": "Isobel Haskell", "lat": 53.4084, "lon": -2.9916, "current_region": "North West ", "current_department": "HMRC", "current_year": "Second Year", "current_city": "Liverpool", "current_title": "Senior Business Advisor", "previous_region": "Wales", "previous_department": "DWP", "previous_title": "Prison Work Coach Team Leader"}, {"name": "Alex Dean", "lat": 53.3811, "lon": -1.4701, "current_region": "Yorkshire and Humber", "current_department": "DfE", "current_year": "Second Year", "current_city": "Sheffield", "current_title": "Cross-Portfolio Lead Drafter of Ministerial Correspondence", "previous_region": "Yorkshire and Humber", "previous_department": "MoJ - HMPPS", "previous_title": "Strategy Manager Prisoner Education Service"}, {"name": "Blaine Christopher", "lat": 52.4068, "lon": -1.5197, "current_region": "West Midlands", "current_department": "HM Land Registry", "current_year": "First Year", "current_city": "Coventry", "current_title": "Register Change Fast Streamer", "previous_region": NaN, "previous_department": NaN, "previous_title": NaN}];
+
+var map=L.map('map').setView([54,-2],6);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+var cluster=L.markerClusterGroup({
+ iconCreateFunction:function(cluster){
+  var count = cluster.getChildCount();
+  var size = count < 10 ? 30 : count < 50 ? 40 : 50;
+  return L.divIcon({
+    html:`<div class="cluster-icon" style="width:${size}px;height:${size}px">${count}</div>`,
+    className:'',
+    iconSize:[size,size]
+  });
+ }
+});
+map.addLayer(cluster);
+
+function getColor(y){return y==='Second Year'?'red':'blue'}
+
+var regionChart, deptChart;
+function drawCharts(rc,dc){
+ if(regionChart) regionChart.destroy();
+ if(deptChart) deptChart.destroy();
+ var r=document.getElementById('regionChart').getContext('2d');
+ var d=document.getElementById('deptChart').getContext('2d');
+ regionChart=new Chart(r,{type:'bar',data:{labels:Object.keys(rc),datasets:[{data:Object.values(rc)}]}});
+ deptChart=new Chart(d,{type:'bar',data:{labels:Object.keys(dc),datasets:[{data:Object.values(dc)}]}});
+}
+
+function populateFilters(){
+ region.innerHTML='<option value="">All Regions</option>';
+ department.innerHTML='<option value="">All Departments</option>';
+ prevDepartment.innerHTML='<option value="">All Previous Departments</option>';
+ year.innerHTML='<option value="">All Years</option>';
+ let r=new Set(),d=new Set(),pd=new Set(),y=new Set();
+ rawData.forEach(x=>{r.add(x.current_region);d.add(x.current_department);pd.add(x.previous_department);y.add(x.current_year);});
+ r.forEach(v=>region.add(new Option(v,v)));
+ d.forEach(v=>department.add(new Option(v,v)));
+ pd.forEach(v=>prevDepartment.add(new Option(v,v)));
+ y.forEach(v=>year.add(new Option(v,v)));
+}
+
+function render(){
+ cluster.clearLayers();
+ let rc={},dc={};
+ let q=search.value.toLowerCase();
+ rawData.filter(x=>x.lat && x.lon)
+ .filter(x=>(!region.value||x.current_region==region.value)&&(!department.value||x.current_department==department.value)&&(!prevDepartment.value||x.previous_department==prevDepartment.value)&&(!year.value||x.current_year==year.value)&&(!q||x.name.toLowerCase().includes(q)))
+ .forEach(x=>{
+  rc[x.current_region]=(rc[x.current_region]||0)+1;
+  dc[x.current_department]=(dc[x.current_department]||0)+1;
+  let prev=(x.previous_department)?`<hr><b>Previous:</b><br>${x.previous_department} – ${x.previous_title||''}`:'';
+  let emailLine = x.email ? `<br><b>Email:</b> ${x.email}` : '';
+  let popup=`<b>${x.name}</b><br>${x.current_department} – ${x.current_title}<br>${x.current_city}${emailLine}${prev}`;
+  cluster.addLayer(L.circleMarker([x.lat,x.lon],{radius:7,color:getColor(x.current_year),fillOpacity:0.9}).bindPopup(popup));
+ });
+ drawCharts(rc,dc);
+}
+
+function resetFilters(){search.value='';region.value='';department.value='';prevDepartment.value='';year.value='';render();}
+
+// CSV upload remains available for admin override
+fileUpload.addEventListener('change',function(e){
+ Papa.parse(e.target.files[0],{header:true,skipEmptyLines:true,complete:function(r){rawData=r.data;populateFilters();render();}});
+});
+
+populateFilters();
+render();
+
+[search,region,department,prevDepartment,year].forEach(el=>el.oninput=render);
+</script>
+</body>
+</html>
